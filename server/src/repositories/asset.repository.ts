@@ -466,6 +466,23 @@ export class AssetRepository {
     return count;
   }
 
+  async getAllForLinkLivePhotos(ownerId: string, force?: boolean) {
+    return this.db
+      .selectFrom('asset')
+      .select(['id', 'originalFileName', 'type', 'livePhotoVideoId'])
+      .where('ownerId', '=', asUuid(ownerId))
+      .where('deletedAt', 'is', null)
+      .$if(!force, (qb) =>
+        qb.where((eb) =>
+          eb.or([
+            eb.and([eb('type', '=', AssetType.Video), eb('visibility', '!=', AssetVisibility.Hidden)]),
+            eb.and([eb('type', '=', AssetType.Image), eb('asset.livePhotoVideoId', 'is', null)]),
+          ]),
+        ),
+      )
+      .execute();
+  }
+
   @GenerateSql()
   getFileSamples() {
     return this.db.selectFrom('asset_file').select(['assetId', 'path']).limit(sql.lit(3)).execute();

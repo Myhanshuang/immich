@@ -236,6 +236,10 @@ export class QueueService extends BaseService {
         return this.jobRepository.queue({ name: JobName.LibraryScanQueueAll, data: { force } });
       }
 
+      case QueueName.BackgroundTask: {
+        return this.jobRepository.queue({ name: JobName.LinkLivePhotosQueueAll, data: { force } });
+      }
+
       case QueueName.BackupDatabase: {
         return this.jobRepository.queue({ name: JobName.DatabaseBackup, data: { force } });
       }

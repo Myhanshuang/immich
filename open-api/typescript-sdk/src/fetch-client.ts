@@ -7062,7 +7062,9 @@ export enum ManualJobName {
     UserCleanup = "user-cleanup",
     MemoryCleanup = "memory-cleanup",
     MemoryCreate = "memory-create",
-    BackupDatabase = "backup-database"
+    BackupDatabase = "backup-database",
+    LinkLivePhotosAll = "link-live-photos-all",
+    LinkLivePhotosMissing = "link-live-photos-missing"
 }
 export enum QueueName {
     ThumbnailGeneration = "thumbnailGeneration",

@@ -34,6 +34,14 @@ const asJobItem = (dto: JobCreateDto): JobItem => {
       return { name: JobName.DatabaseBackup };
     }
 
+    case ManualJobName.LinkLivePhotosAll: {
+      return { name: JobName.LinkLivePhotosQueueAll, data: { force: true } };
+    }
+
+    case ManualJobName.LinkLivePhotosMissing: {
+      return { name: JobName.LinkLivePhotosQueueAll, data: { force: false } };
+    }
+
     default: {
       throw new BadRequestException('Invalid job name');
     }
@@ -150,6 +158,8 @@ export class JobService extends BaseService {
         }
 
         await this.jobRepository.queueAll(jobs);
+        await this.jobRepository.queue({ name: JobName.LinkLivePhotos, data: { userId: asset.ownerId, force: false } });
+
         if (asset.visibility === AssetVisibility.Timeline || asset.visibility === AssetVisibility.Archive) {
           this.websocketRepository.clientSend('on_upload_success', asset.ownerId, mapAsset(asset));
           if (asset.exifInfo) {

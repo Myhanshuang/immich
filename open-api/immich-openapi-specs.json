@@ -18528,7 +18528,9 @@
           "user-cleanup",
           "memory-cleanup",
           "memory-create",
-          "backup-database"
+          "backup-database",
+          "link-live-photos-all",
+          "link-live-photos-missing"
         ],
         "type": "string"
       },

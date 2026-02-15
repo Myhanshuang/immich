@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import _ from 'lodash';
 import { DateTime, Duration } from 'luxon';
+import path from 'path';
 import { JOBS_ASSET_PAGINATION_SIZE } from 'src/constants';
 import { AssetFile } from 'src/database';
 import { OnJob } from 'src/decorators';
@@ -616,5 +617,56 @@ export class AssetService extends BaseService {
 
     await this.assetEditRepository.replaceAll(id, []);
     await this.jobRepository.queue({ name: JobName.AssetEditThumbnailGeneration, data: { id } });
+  }
+
+  @OnJob({ name: JobName.LinkLivePhotosQueueAll, queue: QueueName.BackgroundTask })
+  async handleLinkLivePhotosQueueAll(job: JobOf<JobName.LinkLivePhotosQueueAll>): Promise<JobStatus> {
+    const { force } = job || {};
+    const users = await this.userRepository.getList();
+    for (const user of users) {
+      await this.jobRepository.queue({ name: JobName.LinkLivePhotos, data: { userId: user.id, force } });
+    }
+    return JobStatus.Success;
+  }
+
+  @OnJob({ name: JobName.LinkLivePhotos, queue: QueueName.BackgroundTask })
+  async handleLinkLivePhotos(job: JobOf<JobName.LinkLivePhotos>): Promise<JobStatus> {
+    const { userId, force } = job || {};
+    if (!userId) {
+      return JobStatus.Failed;
+    }
+    const assets = await this.assetRepository.getAllForLinkLivePhotos(userId, force);
+
+    const images = assets.filter((a) => a.type === AssetType.Image);
+    const videos = assets.filter((a) => a.type === AssetType.Video);
+
+    const videoMap = new Map<string, (typeof videos)[0]>();
+    for (const video of videos) {
+      const name = path.parse(video.originalFileName).name.toLowerCase();
+      if (!videoMap.has(name)) {
+        videoMap.set(name, video);
+      }
+    }
+
+    const repos = { asset: this.assetRepository, event: this.eventRepository };
+
+    for (const image of images) {
+      if (image.livePhotoVideoId) {
+        continue;
+      }
+
+      const name = path.parse(image.originalFileName).name.toLowerCase();
+      const motion = videoMap.get(name);
+      if (motion) {
+        try {
+          await onBeforeLink(repos, { userId, livePhotoVideoId: motion.id });
+          await this.assetRepository.update({ id: image.id, livePhotoVideoId: motion.id });
+        } catch (error: any) {
+          this.logger.error(`Failed to link live photo ${image.id} with video ${motion.id}`, error);
+        }
+      }
+    }
+
+    return JobStatus.Success;
   }
 }
